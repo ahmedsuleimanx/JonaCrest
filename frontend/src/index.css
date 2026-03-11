@@ -1,0 +1,214 @@
+/* src/index.css */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Light Mode - Jona Crest Properties Brand Colors */
+  --bg-primary: #f5f9f8;
+  --bg-secondary: #ffffff;
+  --glass-bg: rgba(255, 255, 255, 0.75);
+  --glass-border: rgba(0, 121, 107, 0.2);
+  --text-primary: #1a1a2e;
+  --text-secondary: #4a5568;
+  --accent: #00796b;
+  --accent-light: #4db6ac;
+  --accent-dark: #004d40;
+  --accent-glow: rgba(0, 121, 107, 0.3);
+  --gold: #c9a227;
+  --gold-light: #e0c068;
+}
+
+.dark {
+  /* Dark Mode - Jona Crest Properties Brand Colors */
+  --bg-primary: #0d1b1a;
+  --bg-secondary: #1a2f2e;
+  --glass-bg: rgba(26, 47, 46, 0.75);
+  --glass-border: rgba(77, 182, 172, 0.25);
+  --text-primary: #e8f5f3;
+  --text-secondary: #a0aec0;
+  --accent: #4db6ac;
+  --accent-light: #80cbc4;
+  --accent-dark: #00796b;
+  --accent-glow: rgba(77, 182, 172, 0.4);
+  --gold: #e0c068;
+  --gold-light: #f0d878;
+}
+
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: "Montserrat", sans-serif;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+@layer components {
+  .glass-panel {
+    @apply backdrop-blur-xl border border-opacity-20 shadow-lg transition-all duration-300;
+    min-height: 20px;
+    background: var(--glass-bg);
+    border-color: var(--glass-border);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  }
+
+  .glass-panel:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 40px rgba(0, 121, 107, 0.15);
+  }
+
+  .btn-primary {
+    @apply px-6 py-2 rounded-xl font-semibold text-white transition-all duration-300 shadow-md hover:shadow-lg active:scale-95;
+    background: linear-gradient(
+      135deg,
+      var(--accent) 0%,
+      var(--accent-light) 100%
+    );
+  }
+
+  .btn-secondary {
+    @apply px-6 py-2 rounded-xl font-semibold transition-all duration-300 shadow-sm hover:shadow-md active:scale-95 border-2;
+    border-color: var(--accent);
+    color: var(--accent);
+    background: transparent;
+  }
+}
+
+.filter-group {
+  @apply space-y-3;
+}
+
+.filter-label {
+  @apply flex items-center text-gray-700 font-medium text-sm;
+}
+
+/* ============================================
+   USER DASHBOARD - LIQUID GLASS SYSTEM
+   ============================================ */
+.dash-glass-card {
+  background: var(--glass-bg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--glass-border);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+  border-radius: 20px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.dash-glass-card:hover {
+  box-shadow: 0 12px 40px rgba(0, 121, 107, 0.12);
+}
+
+.dash-glass-sidebar {
+  background: linear-gradient(180deg, rgba(255,255,255,0.9) 0%, rgba(245,249,248,0.95) 100%);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border-right: 1px solid rgba(0, 121, 107, 0.1);
+  box-shadow: 4px 0 24px rgba(0, 0, 0, 0.04);
+}
+
+.dark .dash-glass-sidebar {
+  background: linear-gradient(180deg, rgba(26,47,46,0.95) 0%, rgba(13,27,26,0.98) 100%);
+  border-right: 1px solid rgba(77, 182, 172, 0.15);
+}
+
+.dash-nav-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  padding: 12px 16px;
+  border-radius: 14px;
+  font-weight: 500;
+  font-size: 14px;
+  color: var(--text-secondary);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+  overflow: hidden;
+}
+.dash-nav-item:hover {
+  color: var(--accent);
+  transform: translateX(4px);
+  background: rgba(0, 121, 107, 0.06);
+}
+.dash-nav-item.active {
+  color: var(--accent);
+  background: rgba(0, 121, 107, 0.1);
+  box-shadow: 0 2px 12px rgba(0, 121, 107, 0.12);
+  font-weight: 600;
+}
+.dash-nav-item.active::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 4px;
+  height: 60%;
+  background: linear-gradient(180deg, var(--accent), var(--accent-light));
+  border-radius: 0 4px 4px 0;
+}
+
+@keyframes dashShimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.dash-shimmer {
+  background: linear-gradient(90deg, rgba(0,121,107,0.04) 25%, rgba(0,121,107,0.1) 37%, rgba(0,121,107,0.04) 63%);
+  background-size: 200% 100%;
+  animation: dashShimmer 1.8s ease-in-out infinite;
+  border-radius: 12px;
+}
+
+@keyframes dashPageLoader {
+  0% { transform: translateX(-100%); }
+  50% { transform: translateX(0%); }
+  100% { transform: translateX(100%); }
+}
+.dash-page-loader {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 3px;
+  z-index: 9999;
+  overflow: hidden;
+}
+.dash-page-loader::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 40%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, var(--accent), var(--accent-light), transparent);
+  animation: dashPageLoader 1.2s ease-in-out infinite;
+}
+
+.dash-glass-input {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(0, 121, 107, 0.15);
+  border-radius: 12px;
+  padding: 10px 14px;
+  transition: all 0.2s ease;
+  outline: none;
+}
+.dash-glass-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(0, 121, 107, 0.1);
+}
+
+.dash-glass-btn {
+  background: linear-gradient(135deg, var(--accent), var(--accent-light));
+  color: white;
+  border: none;
+  border-radius: 12px;
+  padding: 10px 20px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  box-shadow: 0 4px 14px rgba(0, 121, 107, 0.25);
+}
+.dash-glass-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(0, 121, 107, 0.35);
+}
