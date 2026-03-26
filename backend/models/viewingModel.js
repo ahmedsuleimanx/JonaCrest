@@ -47,6 +47,13 @@ const viewingSchema = new mongoose.Schema({
       max: 5
     },
     comment: String
+  },
+  mapAccessGranted: {
+    type: Boolean,
+    default: false
+  },
+  mapAccessGrantedAt: {
+    type: Date
   }
 }, {
   timestamps: true

@@ -1,5 +1,5 @@
-import React, { useEffect, useState, useCallback } from "react";
-import { useParams, Link, useNavigate } from "react-router-dom";
+import { useEffect, useState, useCallback } from "react";
+import { useParams, Link } from "react-router-dom";
 import axios from "axios";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
@@ -16,7 +16,8 @@ import {
   ChevronRight,
   Compass,
   Eye,
-  User 
+  User,
+  Copy
 } from "lucide-react";
 import { Backendurl } from "../../App.jsx";
 import ScheduleViewing from "./ScheduleViewing";
@@ -33,7 +34,7 @@ const PropertyDetails = () => {
   const [showServiceRequest, setShowServiceRequest] = useState(false);
   const [activeImage, setActiveImage] = useState(0);
   const [copySuccess, setCopySuccess] = useState(false);
-  const navigate = useNavigate();
+  const [hasMapAccess, setHasMapAccess] = useState(false);
   const { formatPrice, getCurrencySymbol } = useCurrency();
 
   useEffect(() => {
@@ -67,6 +68,28 @@ const PropertyDetails = () => {
     // Reset scroll position and active image when component mounts
     window.scrollTo(0, 0);
     setActiveImage(0);
+  }, [id]);
+
+  // Check if user has map access for this property
+  useEffect(() => {
+    const checkMapAccessStatus = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token || !id) {
+          return;
+        }
+        const response = await axios.get(`${Backendurl}/api/viewings/map-access/${id}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (response.data.success) {
+          setHasMapAccess(response.data.hasAccess);
+        }
+      } catch {
+        // User not logged in or no access - map stays hidden
+        setHasMapAccess(false);
+      }
+    };
+    checkMapAccessStatus();
   }, [id]);
 
   const parseAmenities = (amenities) => {
@@ -413,7 +436,7 @@ const PropertyDetails = () => {
                   </div>
                 </div>
 
-                 {/* Map Location */}
+                 {/* Map Location - Only visible when viewing is confirmed */}
                 <div className="bg-blue-50 rounded-2xl p-6 border border-blue-100">
                   <div className="flex items-center gap-2 text-blue-800 mb-4">
                     <Compass className="w-5 h-5" />
@@ -422,25 +445,64 @@ const PropertyDetails = () => {
                   <p className="text-gray-600 mb-4">
                     Situated in {property.location}, this property offers convenient access to local amenities.
                   </p>
-                  {(property.coordinates?.lat || property.address?.ghanaPostGps) && (
-                     <div className="w-full h-64 bg-gray-200 rounded-xl overflow-hidden mb-4 relative">
-                        {/* Placeholder for real map since we don't have API key. Usually would use Google Maps Embed API or Leaflet */}
-                        <div className="absolute inset-0 flex items-center justify-center bg-gray-100 text-gray-500">
-                           <MapPin className="w-8 h-8 mr-2 text-gray-400" />
-                           Interactive Map View
+
+                  {hasMapAccess ? (
+                    <>
+                      {(property.coordinates?.lat || property.address?.ghanaPostGps) && (
+                        <div className="w-full h-64 bg-gray-200 rounded-xl overflow-hidden mb-4 relative">
+                          {property.coordinates?.lat && property.coordinates?.lng ? (
+                            <iframe
+                              title="Property Location"
+                              width="100%"
+                              height="100%"
+                              style={{ border: 0 }}
+                              loading="lazy"
+                              allowFullScreen
+                              referrerPolicy="no-referrer-when-downgrade"
+                              src={`https://www.google.com/maps/embed/v1/place?key=AIzaSyBFw0Qbyq9zTFTd-tUY6dZWTgaQzuU17R8&q=${property.coordinates.lat},${property.coordinates.lng}&zoom=15`}
+                            />
+                          ) : (
+                            <iframe
+                              title="Property Location"
+                              width="100%"
+                              height="100%"
+                              style={{ border: 0 }}
+                              loading="lazy"
+                              allowFullScreen
+                              referrerPolicy="no-referrer-when-downgrade"
+                              src={`https://www.google.com/maps/embed/v1/place?key=AIzaSyBFw0Qbyq9zTFTd-tUY6dZWTgaQzuU17R8&q=${encodeURIComponent(property.location)}`}
+                            />
+                          )}
                         </div>
-                     </div>
+                      )}
+                      <a
+                        href={`https://www.google.com/maps/search/?api=1&query=${property.coordinates?.lat && property.coordinates?.lng ? `${property.coordinates.lat},${property.coordinates.lng}` : encodeURIComponent(property.location)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-700 font-medium"
+                      >
+                        <MapPin className="w-4 h-4" />
+                        Open in Google Maps
+                      </a>
+                    </>
+                  ) : (
+                    <div className="bg-white rounded-xl p-6 border border-blue-200 text-center">
+                      <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <MapPin className="w-8 h-8 text-blue-400" />
+                      </div>
+                      <h4 className="text-lg font-semibold text-gray-800 mb-2">Location Hidden</h4>
+                      <p className="text-gray-500 text-sm mb-4">
+                        The exact location and map will be revealed once your viewing request is confirmed by our team.
+                      </p>
+                      <button
+                        onClick={() => setShowSchedule(true)}
+                        className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+                      >
+                        <Calendar className="w-4 h-4" />
+                        Schedule a Viewing to Unlock
+                      </button>
+                    </div>
                   )}
-                  
-                  <a
-                    href={`https://www.google.com/maps/search/?api=1&query=${property.coordinates?.lat && property.coordinates?.lng ? `${property.coordinates.lat},${property.coordinates.lng}` : encodeURIComponent(property.location)}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-700 font-medium"
-                  >
-                    <MapPin className="w-4 h-4" />
-                    Open in Google Maps
-                  </a>
                 </div>
 
                 {/* Reviews Section */}

@@ -4,7 +4,7 @@ import {
   Calendar, Truck, Clock, MapPin, ChevronRight, User, MessageSquare,
   FileText, Home, Bell, Settings, LogOut, Menu, X, Search,
   CheckCircle, XCircle, AlertCircle, ChevronLeft, Eye, Building2,
-  HelpCircle, UserCircle
+  HelpCircle, UserCircle, CreditCard, Loader, ExternalLink
 } from 'lucide-react';
 import axios from 'axios';
 import { toast } from 'react-toastify';
@@ -24,6 +24,7 @@ const navItems = [
   { id: 'viewings', label: 'My Viewings', icon: Calendar, path: '/dashboard/viewings' },
   { id: 'services', label: 'Services', icon: Truck, path: '/dashboard/services' },
   { id: 'requests', label: 'My Requests', icon: FileText, path: '/dashboard/requests' },
+  { id: 'payments', label: 'Payments', icon: CreditCard, path: '/dashboard/payments' },
   { id: 'messages', label: 'Messages', icon: MessageSquare, path: '/dashboard/messages' },
   { id: 'notifications', label: 'Notifications', icon: Bell, path: '/dashboard/notifications' },
   { id: 'support', label: 'Support', icon: HelpCircle, path: '/dashboard/tickets' },
@@ -76,12 +77,15 @@ const UserDashboard = () => {
     if (pathname.includes('/tickets') || pathname.includes('/support')) return 'support';
     if (pathname.includes('/viewings')) return 'viewings';
     if (pathname.includes('/requests')) return 'requests';
+    if (pathname.includes('/payments')) return 'payments';
     return 'overview';
   };
 
   const [activeTab, setActiveTab] = useState(getTabFromPath(location.pathname));
   const [viewings, setViewings] = useState([]);
   const [requests, setRequests] = useState([]);
+  const [payments, setPayments] = useState([]);
+  const [payingId, setPayingId] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -102,6 +106,7 @@ const UserDashboard = () => {
       viewings: '/dashboard/viewings',
       services: '/dashboard/services',
       requests: '/dashboard/requests',
+      payments: '/dashboard/payments',
       messages: '/dashboard/messages',
       notifications: '/dashboard/notifications',
       support: '/dashboard/tickets',
@@ -120,12 +125,14 @@ const UserDashboard = () => {
       const token = localStorage.getItem('token');
       if (!token) return;
       const headers = { Authorization: `Bearer ${token}` };
-      const [viewingsRes, requestsRes] = await Promise.all([
+      const [viewingsRes, requestsRes, paymentsRes] = await Promise.all([
         axios.get(`${Backendurl}/api/viewings/my-viewings`, { headers }).catch(() => ({ data: { viewings: [] } })),
         axios.get(`${Backendurl}/api/services/my-requests`, { headers }).catch(() => ({ data: { requests: [] } })),
+        axios.get(`${Backendurl}/api/payment/my-payments`, { headers }).catch(() => ({ data: { payments: [] } })),
       ]);
       setViewings(viewingsRes.data.viewings || []);
       setRequests(requestsRes.data.requests || []);
+      setPayments(paymentsRes.data.payments || []);
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
       toast.error('Failed to load dashboard data');
@@ -436,6 +443,106 @@ const UserDashboard = () => {
     </div>
   );
 
+  const handlePayNow = async (paymentId) => {
+    try {
+      setPayingId(paymentId);
+      const token = localStorage.getItem('token');
+      const response = await axios.post(
+        `${Backendurl}/api/payment/initialize`,
+        { paymentId },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (response.data.success && response.data.authorization_url) {
+        window.location.href = response.data.authorization_url;
+      } else {
+        toast.error(response.data.message || 'Failed to initialize payment');
+      }
+    } catch (error) {
+      console.error('Payment initialization error:', error);
+      toast.error(error.response?.data?.message || 'Failed to initialize payment');
+    } finally {
+      setPayingId(null);
+    }
+  };
+
+  const paymentStatusConfig = {
+    pending: { color: 'bg-amber-100 text-amber-700', label: 'Pending' },
+    paid: { color: 'bg-green-100 text-green-700', label: 'Paid' },
+    failed: { color: 'bg-red-100 text-red-700', label: 'Failed' },
+    cancelled: { color: 'bg-gray-100 text-gray-700', label: 'Cancelled' },
+    refunded: { color: 'bg-blue-100 text-blue-700', label: 'Refunded' },
+  };
+
+  const renderPayments = () => (
+    <div className="space-y-6">
+      <h2 className="text-2xl font-bold text-[var(--text-primary)]">Payments</h2>
+      {payments.length > 0 ? (
+        <div className="space-y-3">
+          {payments.map((payment, idx) => {
+            const pConfig = paymentStatusConfig[payment.status] || paymentStatusConfig.pending;
+            return (
+              <motion.div
+                key={payment._id}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: idx * 0.04 }}
+                className="dash-glass-card p-5"
+              >
+                <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
+                  <div>
+                    <div className="flex items-center gap-3 mb-2">
+                      <span className="bg-amber-100 text-amber-600 p-2 rounded-xl">
+                        <CreditCard className="w-5 h-5" />
+                      </span>
+                      <h3 className="font-bold text-[var(--text-primary)] text-lg">
+                        GHS {payment.amount?.toFixed(2)}
+                      </h3>
+                    </div>
+                    <p className="text-[var(--text-secondary)] text-sm mb-2">{payment.description}</p>
+                    <p className="text-xs text-[var(--text-secondary)]">
+                      Requested {formatDate(payment.createdAt)}
+                      {payment.paidAt && ` · Paid ${formatDate(payment.paidAt)}`}
+                    </p>
+                  </div>
+                  <div className="flex flex-col items-end gap-2 flex-shrink-0">
+                    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${pConfig.color}`}>
+                      {pConfig.label}
+                    </span>
+                    {payment.status === 'pending' && (
+                      <button
+                        onClick={() => handlePayNow(payment._id)}
+                        disabled={payingId === payment._id}
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all text-sm font-medium disabled:opacity-50"
+                      >
+                        {payingId === payment._id ? (
+                          <>
+                            <Loader className="w-4 h-4 animate-spin" />
+                            Processing...
+                          </>
+                        ) : (
+                          <>
+                            <ExternalLink className="w-4 h-4" />
+                            Pay Now
+                          </>
+                        )}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </motion.div>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="dash-glass-card p-12 text-center">
+          <CreditCard className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+          <h3 className="text-lg font-medium text-[var(--text-primary)] mb-2">No payments</h3>
+          <p className="text-[var(--text-secondary)]">You have no payment requests at the moment.</p>
+        </div>
+      )}
+    </div>
+  );
+
   const renderContent = () => {
     if (loading || pageLoading) return <DashShimmerPage />;
     switch (activeTab) {
@@ -444,6 +551,7 @@ const UserDashboard = () => {
       case 'viewings': return renderViewings();
       case 'services': return <ServicesTab />;
       case 'requests': return renderRequests();
+      case 'payments': return renderPayments();
       case 'messages': return <MessagesTab />;
       case 'notifications': return <NotificationsPage />;
       case 'support': return <TicketsTab />;

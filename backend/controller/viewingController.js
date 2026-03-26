@@ -80,6 +80,30 @@ export const getAgentViewings = async (req, res) => {
     }
 };
 
+export const checkMapAccess = async (req, res) => {
+    try {
+        const { propertyId } = req.params;
+        const userId = req.user._id;
+
+        // Check if user has any confirmed/completed viewing with map access granted for this property
+        const viewing = await Viewing.findOne({
+            propertyId,
+            userId,
+            status: { $in: ['confirmed', 'completed'] },
+            mapAccessGranted: true
+        });
+
+        res.json({
+            success: true,
+            hasAccess: !!viewing,
+            viewing: viewing ? { _id: viewing._id, status: viewing.status, mapAccessGrantedAt: viewing.mapAccessGrantedAt } : null
+        });
+    } catch (error) {
+        console.error('Error checking map access:', error);
+        res.status(500).json({ success: false, message: 'Server Error' });
+    }
+};
+
 export const updateViewingStatus = async (req, res) => {
     try {
         const { id } = req.params;
@@ -87,6 +111,18 @@ export const updateViewingStatus = async (req, res) => {
 
         const updateData = { status };
         if (meetingLink) updateData.meetingLink = meetingLink;
+
+        // Automatically grant map access when viewing is confirmed
+        if (status === 'confirmed') {
+            updateData.mapAccessGranted = true;
+            updateData.mapAccessGrantedAt = new Date();
+        }
+
+        // Revoke map access when viewing is cancelled
+        if (status === 'cancelled') {
+            updateData.mapAccessGranted = false;
+            updateData.mapAccessGrantedAt = null;
+        }
 
         const viewing = await Viewing.findByIdAndUpdate(id, updateData, { new: true })
             .populate('propertyId', 'title');

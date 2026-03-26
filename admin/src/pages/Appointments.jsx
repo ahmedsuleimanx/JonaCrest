@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Calendar,
   Clock,
@@ -13,6 +13,7 @@ import {
   Search,
   Link as LinkIcon,
   Send,
+  DollarSign,
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { backendurl } from "../config/constants";
@@ -24,6 +25,10 @@ const Appointments = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [editingMeetingLink, setEditingMeetingLink] = useState(null);
   const [meetingLink, setMeetingLink] = useState("");
+  const [paymentModal, setPaymentModal] = useState(null);
+  const [paymentAmount, setPaymentAmount] = useState("");
+  const [paymentDescription, setPaymentDescription] = useState("");
+  const [paymentLoading, setPaymentLoading] = useState(false);
 
   const fetchAppointments = async () => {
     try {
@@ -103,6 +108,42 @@ const Appointments = () => {
     } catch (error) {
       console.error("Error updating meeting link:", error);
       toast.error("Failed to update meeting link");
+    }
+  };
+
+  const handleRequestPayment = async (appointment) => {
+    if (!paymentAmount || parseFloat(paymentAmount) <= 0) {
+      toast.error("Please enter a valid amount");
+      return;
+    }
+    try {
+      setPaymentLoading(true);
+      const response = await axios.post(
+        `${backendurl}/api/payment/request`,
+        {
+          userId: appointment.userId?._id,
+          referenceType: "viewing",
+          referenceId: appointment._id,
+          amount: parseFloat(paymentAmount),
+          description: paymentDescription || `Payment for viewing: ${appointment.propertyId?.title || 'Property'}`,
+        },
+        {
+          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+        }
+      );
+      if (response.data.success) {
+        toast.success("Payment request sent successfully");
+        setPaymentModal(null);
+        setPaymentAmount("");
+        setPaymentDescription("");
+      } else {
+        toast.error(response.data.message || "Failed to request payment");
+      }
+    } catch (error) {
+      console.error("Error requesting payment:", error);
+      toast.error(error.response?.data?.message || "Failed to request payment");
+    } finally {
+      setPaymentLoading(false);
     }
   };
 
@@ -337,26 +378,41 @@ const Appointments = () => {
 
                     {/* Actions */}
                     <td className="px-6 py-4">
-                      {appointment.status === "pending" && (
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() =>
-                              handleStatusChange(appointment._id, "confirmed")
-                            }
-                            className="p-1 bg-green-500 text-white rounded hover:bg-green-600"
-                          >
-                            <Check className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() =>
-                              handleStatusChange(appointment._id, "cancelled")
-                            }
-                            className="p-1 bg-red-500 text-white rounded hover:bg-red-600"
-                          >
-                            <X className="w-4 h-4" />
-                          </button>
-                        </div>
-                      )}
+                      <div className="flex items-center gap-2">
+                        {appointment.status === "pending" && (
+                          <>
+                            <button
+                              onClick={() =>
+                                handleStatusChange(appointment._id, "confirmed")
+                              }
+                              className="p-1 bg-green-500 text-white rounded hover:bg-green-600"
+                              title="Confirm"
+                            >
+                              <Check className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() =>
+                                handleStatusChange(appointment._id, "cancelled")
+                              }
+                              className="p-1 bg-red-500 text-white rounded hover:bg-red-600"
+                              title="Cancel"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          </>
+                        )}
+                        <button
+                          onClick={() => {
+                            setPaymentModal(appointment);
+                            setPaymentAmount("");
+                            setPaymentDescription("");
+                          }}
+                          className="p-1 bg-amber-500 text-white rounded hover:bg-amber-600"
+                          title="Request Payment"
+                        >
+                          <DollarSign className="w-4 h-4" />
+                        </button>
+                      </div>
                     </td>
                   </motion.tr>
                 ))}
@@ -371,6 +427,98 @@ const Appointments = () => {
           )}
         </div>
       </div>
+
+      {/* Payment Request Modal */}
+      <AnimatePresence>
+        {paymentModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            onClick={() => setPaymentModal(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6"
+            >
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+                  <DollarSign className="w-5 h-5 text-amber-500" />
+                  Request Payment
+                </h3>
+                <button
+                  onClick={() => setPaymentModal(null)}
+                  className="p-2 hover:bg-gray-100 rounded-lg"
+                >
+                  <X className="w-5 h-5 text-gray-500" />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div className="p-3 bg-gray-50 rounded-xl">
+                  <p className="text-xs text-gray-500">Viewing for</p>
+                  <p className="font-semibold text-gray-800">
+                    {paymentModal.propertyId?.title || "Property"}
+                  </p>
+                  <p className="text-sm text-gray-500">
+                    Client: {paymentModal.userId?.name || "Unknown"}
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Amount (GHS) *
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    step="0.01"
+                    value={paymentAmount}
+                    onChange={(e) => setPaymentAmount(e.target.value)}
+                    placeholder="Enter amount"
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Description (optional)
+                  </label>
+                  <textarea
+                    value={paymentDescription}
+                    onChange={(e) => setPaymentDescription(e.target.value)}
+                    placeholder="e.g. Viewing fee, Inspection fee..."
+                    rows={2}
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-amber-500 resize-none"
+                  />
+                </div>
+
+                <button
+                  onClick={() => handleRequestPayment(paymentModal)}
+                  disabled={paymentLoading || !paymentAmount}
+                  className="w-full py-3 bg-amber-500 text-white rounded-xl hover:bg-amber-600 font-semibold flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  {paymentLoading ? (
+                    <>
+                      <Loader className="w-4 h-4 animate-spin" />
+                      Sending...
+                    </>
+                  ) : (
+                    <>
+                      <Send className="w-4 h-4" />
+                      Send Payment Request
+                    </>
+                  )}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

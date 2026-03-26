@@ -26,6 +26,7 @@ import profileRouter from './routes/profileRoute.js';
 import settingsRouter from './routes/settingsRoute.js';
 import partnerRouter from './routes/partnerRoute.js';
 import aiChatRouter from './routes/aiChatRoute.js';
+import reviewRouter from './routes/reviewRoute.js';
 import getStatusPage from './serverweb.js';
 
 
@@ -136,10 +137,6 @@ app.use('/api/tickets', ticketRouter);
 app.use('/api/chat', chatRouter);
 app.use('/api/agent', agentRouter);
 app.use('/api/profile', profileRouter);
-import reviewRouter from './routes/reviewRoute.js';
-
-// ... existing imports ...
-
 app.use('/api/reviews', reviewRouter);
 app.use('/api/settings', settingsRouter);
 app.use('/api/partners', partnerRouter);

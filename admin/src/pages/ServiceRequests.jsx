@@ -4,7 +4,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   ClipboardList, Search, Filter, Check, X, Clock,
   Eye, ChevronLeft, ChevronRight, Loader, AlertCircle,
-  CheckCircle, XCircle, Timer, User, Building2, Phone
+  CheckCircle, XCircle, Timer, User, Building2, Phone,
+  DollarSign, Send
 } from 'lucide-react';
 import { backendurl } from '../config/constants';
 import { TablePageShimmer } from '../components/ShimmerLoading';
@@ -29,6 +30,10 @@ const ServiceRequests = () => {
   const [actionLoading, setActionLoading] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const perPage = 10;
+  const [paymentModal, setPaymentModal] = useState(null);
+  const [paymentAmount, setPaymentAmount] = useState('');
+  const [paymentDescription, setPaymentDescription] = useState('');
+  const [paymentLoading, setPaymentLoading] = useState(false);
 
   const fetchRequests = async () => {
     try {
@@ -70,6 +75,40 @@ const ServiceRequests = () => {
       toast.error('Failed to update status');
     } finally {
       setActionLoading(null);
+    }
+  };
+
+  const handleRequestPayment = async (serviceReq) => {
+    if (!paymentAmount || parseFloat(paymentAmount) <= 0) {
+      toast.error('Please enter a valid amount');
+      return;
+    }
+    try {
+      setPaymentLoading(true);
+      const res = await axios.post(
+        `${backendurl}/api/payment/request`,
+        {
+          userId: serviceReq.userId?._id,
+          referenceType: 'service_request',
+          referenceId: serviceReq._id,
+          amount: parseFloat(paymentAmount),
+          description: paymentDescription || `Payment for ${serviceReq.serviceType} service`,
+        },
+        { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
+      );
+      if (res.data.success) {
+        toast.success('Payment request sent successfully');
+        setPaymentModal(null);
+        setPaymentAmount('');
+        setPaymentDescription('');
+      } else {
+        toast.error(res.data.message || 'Failed to request payment');
+      }
+    } catch (error) {
+      console.error('Error requesting payment:', error);
+      toast.error(error.response?.data?.message || 'Failed to request payment');
+    } finally {
+      setPaymentLoading(false);
     }
   };
 
@@ -213,6 +252,17 @@ const ServiceRequests = () => {
                       </button>
                     </>
                   )}
+                  <button
+                    onClick={() => {
+                      setPaymentModal(req);
+                      setPaymentAmount('');
+                      setPaymentDescription('');
+                    }}
+                    className="p-2 rounded-lg hover:bg-amber-100 text-gray-500 hover:text-amber-600 transition-all"
+                    title="Request Payment"
+                  >
+                    <DollarSign className="w-4 h-4" />
+                  </button>
                 </div>
               </div>
             </motion.div>
@@ -360,6 +410,87 @@ const ServiceRequests = () => {
                     </button>
                   </div>
                 )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Payment Request Modal */}
+      <AnimatePresence>
+        {paymentModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            onClick={() => setPaymentModal(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6"
+            >
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+                  <DollarSign className="w-5 h-5 text-amber-500" />
+                  Request Payment
+                </h3>
+                <button onClick={() => setPaymentModal(null)} className="p-2 hover:bg-gray-100 rounded-lg">
+                  <X className="w-5 h-5 text-gray-500" />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div className="p-3 bg-gray-50 rounded-xl">
+                  <p className="text-xs text-gray-500">Service Request</p>
+                  <p className="font-semibold text-gray-800">{paymentModal.serviceType} Service</p>
+                  <p className="text-sm text-gray-500">Client: {paymentModal.userId?.name || 'Unknown'}</p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Amount (GHS) *</label>
+                  <input
+                    type="number"
+                    min="1"
+                    step="0.01"
+                    value={paymentAmount}
+                    onChange={(e) => setPaymentAmount(e.target.value)}
+                    placeholder="Enter amount"
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Description (optional)</label>
+                  <textarea
+                    value={paymentDescription}
+                    onChange={(e) => setPaymentDescription(e.target.value)}
+                    placeholder="e.g. Service fee, Consultation fee..."
+                    rows={2}
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-amber-500 resize-none"
+                  />
+                </div>
+
+                <button
+                  onClick={() => handleRequestPayment(paymentModal)}
+                  disabled={paymentLoading || !paymentAmount}
+                  className="w-full py-3 bg-amber-500 text-white rounded-xl hover:bg-amber-600 font-semibold flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  {paymentLoading ? (
+                    <>
+                      <Loader className="w-4 h-4 animate-spin" />
+                      Sending...
+                    </>
+                  ) : (
+                    <>
+                      <Send className="w-4 h-4" />
+                      Send Payment Request
+                    </>
+                  )}
+                </button>
               </div>
             </motion.div>
           </motion.div>

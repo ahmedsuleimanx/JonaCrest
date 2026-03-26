@@ -1,6 +1,7 @@
 import Stats from '../models/statsModel.js';
 import Property from '../models/propertymodel.js';
 import Appointment from '../models/appointmentModel.js';
+import Viewing from '../models/viewingModel.js';
 import User from '../models/Usermodel.js';
 import transporter from "../config/nodemailer.js";
 import { getSchedulingEmailTemplate,getEmailTemplate } from '../email.js';
@@ -200,6 +201,46 @@ export const updateAppointmentStatus = async (req, res) => {
         success: false,
         message: 'Appointment not found'
       });
+    }
+
+    // Sync map access with Viewing model
+    try {
+      if (status === 'confirmed') {
+        // Find or create a corresponding Viewing record and grant map access
+        let viewing = await Viewing.findOne({
+          propertyId: appointment.propertyId._id,
+          userId: appointment.userId._id,
+          status: { $in: ['pending', 'confirmed'] }
+        });
+        
+        if (viewing) {
+          viewing.status = 'confirmed';
+          viewing.mapAccessGranted = true;
+          viewing.mapAccessGrantedAt = new Date();
+          await viewing.save();
+        } else {
+          // Create a Viewing record with map access granted
+          viewing = new Viewing({
+            propertyId: appointment.propertyId._id,
+            userId: appointment.userId._id,
+            date: appointment.date,
+            timeSlot: appointment.time,
+            type: 'In-Person',
+            status: 'confirmed',
+            mapAccessGranted: true,
+            mapAccessGrantedAt: new Date()
+          });
+          await viewing.save();
+        }
+      } else if (status === 'cancelled') {
+        // Revoke map access on corresponding Viewing records
+        await Viewing.updateMany(
+          { propertyId: appointment.propertyId._id, userId: appointment.userId._id },
+          { mapAccessGranted: false, mapAccessGrantedAt: null }
+        );
+      }
+    } catch (syncError) {
+      console.error('Error syncing Viewing map access:', syncError);
     }
 
     // Send email notification

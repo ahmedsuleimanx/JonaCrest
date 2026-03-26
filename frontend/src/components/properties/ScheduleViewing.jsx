@@ -83,7 +83,6 @@ const ScheduleViewing = ({ propertyId, propertyTitle, propertyLocation, property
       }
     
       setLoading(true);
-      setLoading(true);
       const response = await axios.post(
         `${Backendurl}/api/viewings/schedule`, 
         {

@@ -92,7 +92,7 @@ const cardVariants = {
 };
 
 const Services = () => {
-  const { user, token } = useAuth();
+  const { user } = useAuth();
   const [selectedService, setSelectedService] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -138,7 +138,7 @@ const Services = () => {
           scheduledDate: formData.scheduledDate,
           contactPhone: formData.contactPhone
         },
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
       );
 
       if (response.data.success) {
